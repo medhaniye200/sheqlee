@@ -29,10 +29,22 @@ button:hover:not(:disabled) { border-color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .primary, .danger { background: var(--accent); border-color: transparent; color: white; }
 .danger { background: #992d47; }
-.board { display: grid; min-height: 100vh; grid-template-columns: 14.5rem minmax(0, 1fr); grid-template-rows: auto 1fr; }
-.topbar { grid-column: 1 / -1; background: #242124; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem 1.25rem; min-height: 3.6rem; }
+.board { --topbar-height: 3.6rem; display: grid; min-height: 100vh; grid-template-columns: 14.5rem minmax(0, 1fr); grid-template-rows: auto 1fr; }
+.topbar { grid-column: 1 / -1; background: #242124; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem 1.25rem; min-height: var(--topbar-height); }
 .topbar a { color: white; text-decoration: none; font-family: Recoleta, Georgia, serif; }
-.sidebar { background: #dfdfdf; padding: 1.2rem .75rem; }
+.sidebar {
+  background: #dfdfdf;
+  padding: 1.2rem .75rem;
+  overflow: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.sidebar::-webkit-scrollbar { width: .65rem; }
+.sidebar::-webkit-scrollbar-track { background: #d0ccd2; }
+.sidebar::-webkit-scrollbar-thumb { background: #6d6374; border: 2px solid #d0ccd2; border-radius: 1rem; }
+@supports not selector(::-webkit-scrollbar) {
+  .sidebar { scrollbar-color: #6d6374 #d0ccd2; }
+}
 .board-logo { display: grid; place-items: center; margin-bottom: 1rem; }
 .board-logo img { width: 68px; }
 .account {
@@ -137,11 +149,22 @@ dt { font-weight: bold; }
   }
 }
 
+@media (width > 52rem) {
+  .topbar { position: sticky; top: 0; z-index: 1; }
+  .sidebar {
+    position: sticky;
+    top: var(--topbar-height);
+    align-self: start;
+    height: calc(100vh - var(--topbar-height));
+    height: calc(100dvh - var(--topbar-height));
+  }
+}
+
 @media (max-width: 52rem) {
   .board { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
   .menu-toggle { display: inline-block; }
   .sidebar { display: none; }
-  .sidebar.expanded { display: block; }
+  .sidebar.expanded { display: block; max-height: 60vh; max-height: 60dvh; }
   .sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .board-logo { display: none; }
   .workspace { grid-row: 3; }

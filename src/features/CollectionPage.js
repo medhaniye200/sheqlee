@@ -9,6 +9,8 @@ import RecordForm from "../components/common/RecordForm";
 
 const empty = {};
 const dateLabel = (date) => new Date(date).toLocaleDateString();
+const idColumn = { key: "id", label: "ID" };
+const createdColumn = { key: "createdAt", label: "Created" };
 
 export default function CollectionPage({ module, user, scope = empty, heading, initialEditor = null, onUserChange }) {
   const schema = modules[module];
@@ -33,6 +35,11 @@ export default function CollectionPage({ module, user, scope = empty, heading, i
   const baseFilters = id ? { ...scope, [module === "applicants" ? "job" : "category"]: id } : scope;
   const result = queryRecords(value, { search, filters: { ...filters, ...baseFilters }, ...dates, ...sort, page, display });
   const fields = schema.fields.filter(({ multiline }) => !multiline);
+  const jobPosts = module === "jobs";
+  const columns = jobPosts
+    ? [...fields.filter(({ key }) => key === "title" || key === "status"),
+      ...fields.filter(({ key }) => key !== "title" && key !== "status"), createdColumn, idColumn]
+    : [idColumn, ...fields, createdColumn];
   const relatedCount = (key, field, rowId, status) => records[key].all().filter((item) =>
     item[field] === rowId && (!status || item.status === status)).length;
 
@@ -40,6 +47,20 @@ export default function CollectionPage({ module, user, scope = empty, heading, i
     refresh();
     setMessage({ text });
     if (module === "users") onUserChange?.();
+  }
+
+  function updateSort(key, descending) {
+    setSort({ sort: key, descending });
+    setPage(1);
+  }
+
+  function cellValue(record, { key, type }) {
+    if (key === "id") return record.id.length > 18 ? record.id.slice(0, 15) + "…" : record.id;
+    if (key === "createdAt") return dateLabel(record.createdAt);
+    if (type === "url" && /^https?:\/\//i.test(record[key])) {
+      return <a href={record[key]} target="_blank" rel="noreferrer">Open link</a>;
+    }
+    return display(record, key) || "—";
   }
 
   function save(input) {
@@ -83,27 +104,38 @@ export default function CollectionPage({ module, user, scope = empty, heading, i
         <input type="date" value={dates[key] || ""} onChange={(event) => { setDates({ ...dates, [key]: event.target.value }); setPage(1); }} />
       </label>)}
     </div>
+    {result.total > 0 && <div className="compact-sort">
+      <label>Sort by<select value={sort.sort} onChange={(event) => updateSort(event.target.value, sort.descending)}>
+        {columns.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+      </select></label>
+      <label>Order<select value={String(sort.descending)} onChange={(event) => updateSort(sort.sort, event.target.value === "true")}>
+        <option value="false">Ascending</option>
+        <option value="true">Descending</option>
+      </select></label>
+    </div>}
     {result.total === 0 ? <p className="empty">No records match this view.</p> :
-      <div className="table-scroll" tabIndex={0} role="region" aria-label={schema.label + " table"}>
-        <table>
+      <div className={jobPosts ? "record-list job-posts-list" : "record-list"}>
+        <table role="table" aria-label={schema.label}>
           <thead><tr>
-            {[{ key: "id", label: "ID" }, ...fields, { key: "createdAt", label: "Created" }].map(({ key, label }) =>
+            {columns.map(({ key, label }) =>
               <th key={key} scope="col" aria-sort={sort.sort === key ? (sort.descending ? "descending" : "ascending") : undefined}>
-                <button onClick={() => { setSort({ sort: key, descending: sort.sort === key && !sort.descending }); setPage(1); }}>
+                <button onClick={() => updateSort(key, sort.sort === key && !sort.descending)}>
                   {label}{sort.sort === key ? (sort.descending ? " ↓" : " ↑") : ""}
                 </button>
               </th>)}
             <th scope="col">Actions</th>
           </tr></thead>
-          <tbody>{result.items.map((record) => <tr key={record.id}>
-            <td title={record.id}>{record.id.length > 18 ? record.id.slice(0, 15) + "…" : record.id}</td>
-            {fields.map(({ key, type }) => <td key={key}>
-              {type === "url" && /^https?:\/\//i.test(record[key]) ? <a href={record[key]} target="_blank" rel="noreferrer">Open link</a> : display(record, key) || "—"}
+          {/* Keep the row group exposed when the compact layout switches tbody to grid. */}
+          {/* eslint-disable-next-line jsx-a11y/no-redundant-roles */}
+          <tbody role="rowgroup">{result.items.map((record) => <tr key={record.id} role="row">
+            {columns.map((column) => <td key={column.key} role="cell" data-field={column.key}
+              title={column.key === "id" ? record.id : undefined}>
+              <span className="compact-label">{column.label}</span>
+              <span>{cellValue(record, column)}</span>
             </td>)}
-            <td>{dateLabel(record.createdAt)}</td>
-            <td><div className="actions">
+            <td role="cell" className="record-actions"><div className="actions">
+              {jobPosts && <Link className="row-action-link" to={"/side-bar/job-posts/applicants/" + record.id}>Applicants ({relatedCount("applicants", "job", record.id)})</Link>}
               <button onClick={() => { setDetail(record); details.current.showModal(); }}>View</button>
-              {module === "jobs" && <Link to={"/side-bar/job-posts/applicants/" + record.id}>Applicants ({relatedCount("applicants", "job", record.id)})</Link>}
               {module === "categories" && <Link to={"/admin/categories/jobs/" + record.id}>Jobs ({relatedCount("jobs", "category", record.id)})</Link>}
               {canEdit && <><button onClick={() => setEditor(record)}>Edit</button><button onClick={() => { setDeleting(record); confirmation.current.showModal(); }}>Delete</button></>}
             </div></td>

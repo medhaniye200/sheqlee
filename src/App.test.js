@@ -9,6 +9,23 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/");
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
+  jest.spyOn(window, "scrollTo").mockImplementation(() => {});
+});
+
+afterEach(() => jest.restoreAllMocks());
+
+test("returns to the top when navigating from the bottom of the sidebar", async () => {
+  auth.signIn("admin@example.com", "password123");
+  window.history.replaceState({}, "", "/side-bar/job-posts");
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Menu", hidden: true }));
+  window.scrollTo.mockClear();
+
+  const sidebar = within(screen.getByRole("navigation", { name: "Main navigation" }));
+  fireEvent.click(sidebar.getByRole("link", { name: "Users" }));
+
+  expect(await screen.findByRole("heading", { name: "Users" })).toBeInTheDocument();
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
 });
 
 test("redirects to login, restores the intended route and persists a job after remount", async () => {

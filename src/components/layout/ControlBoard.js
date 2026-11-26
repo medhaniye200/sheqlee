@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 import logo from "../../assets/settings-alt2.png";
@@ -29,6 +29,10 @@ export default function ControlBoard({ user, onLogout }) {
   const [error, setError] = useState("");
   const expanded = menu === location.key;
   const profile = records.profiles.find(user.id);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [location.key]);
 
   return <div className="board">
     <header className="topbar">
